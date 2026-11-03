@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Photomaton Partagé</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #ece7dc;
+    --bg-raised: #ffffff;
+    --ink: #1f1b16;
+    --ink-soft: #6b6255;
+    --line: #d8d0c0;
+    --accent: #9c3b32;
+    --accent-ink: #fbf3ea;
+    --ok: #3f6b4f;
+    --warn: #a3742b;
+    --display: 'Archivo Black', 'Arial Black', sans-serif;
+    --body: 'IBM Plex Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1a17;
+      --bg-raised: #272420;
+      --ink: #f3ede1;
+      --ink-soft: #a89d8c;
+      --line: #3a362f;
+      --accent: #d97a6c;
+      --accent-ink: #241310;
+      --ok: #7fb594;
+      --warn: #d9a84f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    padding: 20px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px));
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(1.4rem, 5vw, 1.9rem);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .frame-counter {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .booth {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 22px 18px;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .hint {
+    margin: 0 0 16px;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    max-width: 38ch;
+    margin-inline: auto;
+  }
+  .viewfinder {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: var(--ink);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .viewfinder .tap-hint { display: flex; align-items: center; gap: 8px; padding: 0 20px; }
+  .viewfinder .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); flex: none; }
+  .viewfinder[disabled] { opacity: 0.5; cursor: not-allowed; }
+  .viewfinder.flash::after {
+    content: ""; position: absolute; inset: 0; background: #fff;
+    animation: flash 0.25s ease-out;
+  }
+  @keyframes flash { from { opacity: 0.9; } to { opacity: 0; } }
+  input[type="file"] { display: none; }
+  .status { margin-top: 14px; font-family: var(--mono); font-size: 0.82rem; min-height: 1.4em; }
+  .status.pending { color: var(--warn); }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--accent); }
+  .strip-label {
+    font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-soft); margin: 0 0 10px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .frame {
+    position: relative; aspect-ratio: 1; background: var(--bg-raised);
+    border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+  }
+  .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .frame .tag {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 6px;
+    font-family: var(--mono); font-size: 0.65rem; color: #fff;
+    background: linear-gradient(transparent, rgba(0,0,0,0.65)); text-align: right;
+  }
+  .empty {
+    border: 1px dashed var(--line); border-radius: 4px; padding: 28px 16px;
+    text-align: center; color: var(--ink-soft); font-size: 0.88rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Photomaton<br>Partagé</h1>
+    <span class="frame-counter" id="counter">00 PRISES</span>
+  </header>
+
+  <div class="booth">
+    <p class="hint">Touche le cadre pour ouvrir l'appareil photo. Une fois la photo prise et confirmée, elle part automatiquement vers la galerie et par mail.</p>
+    <button class="viewfinder" id="tapZone" type="button">
+      <span class="tap-hint"><span class="dot"></span>Toucher pour photographier</span>
+    </button>
+    <input type="file" id="fileInput" accept="image/*" capture="environment">
+    <div class="status" id="status"></div>
+  </div>
+
+  <p class="strip-label">Pellicule</p>
+  <div class="grid" id="grid">
+    <div class="empty">Chargement…</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const tapZone = document.getElementById('tapZone');
+  const fileInput = document.getElementById('fileInput');
+  const statusEl = document.getElementById('status');
+  const grid = document.getElementById('grid');
+  const counter = document.getElementById('counter');
+  let busy = false;
+
+  function setStatus(kind, text) {
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+    statusEl.textContent = text || '';
+  }
+
+  function renderPhotos(urls) {
+    if (!urls.length) {
+      grid.innerHTML = '<div class="empty">Aucune photo pour l\'instant. La première prise ouvrira la pellicule.</div>';
+      counter.textContent = '00 PRISES';
+      return;
+    }
+    counter.textContent = String(urls.length).padStart(2, '0') + (urls.length > 1 ? ' PRISES' : ' PRISE');
+    grid.innerHTML = '';
+    urls.forEach((url, i) => {
+      const frame = document.createElement('div');
+      frame.className = 'frame';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'photo';
+      img.loading = 'lazy';
+      frame.appendChild(img);
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = '#' + String(urls.length - i).padStart(3, '0');
+      frame.appendChild(tag);
+      grid.appendChild(frame);
+    });
+  }
+
+  async function refreshGallery() {
+    try {
+      const res = await fetch('/api/photos');
+      const urls = await res.json();
+      renderPhotos(urls);
+    } catch (e) {
+      grid.innerHTML = '<div class="empty">Galerie indisponible pour le moment.</div>';
+    }
+  }
+
+  async function handleFile(file) {
+    if (busy || !file) return;
+    busy = true;
+    tapZone.classList.add('flash');
+    setTimeout(() => tapZone.classList.remove('flash'), 250);
+    setStatus('pending', 'Envoi en cours…');
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Erreur inconnue');
+      if (data.emailSent) {
+        setStatus('ok', 'Photo envoyée dans la pellicule et par mail.');
+      } else if (data.emailError) {
+        setStatus('err', 'Photo dans la pellicule. Échec de l\'envoi mail.');
+      } else {
+        setStatus('ok', 'Photo envoyée dans la pellicule.');
+      }
+      refreshGallery();
+    } catch (err) {
+      setStatus('err', "Échec de l'envoi : " + err.message);
+    } finally {
+      busy = false;
+    }
+  }
+
+  tapZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    handleFile(file);
+  });
+
+  refreshGallery();
+})();
+</script>
+</body>
+</html>
